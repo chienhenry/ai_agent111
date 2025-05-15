@@ -1,6 +1,9 @@
 import json
-from langchain_deepseek import ChatDeepSeek
+from langchain.chat_models import ChatOpenAI
 from langchain_experimental.agents.agent_toolkits import create_pandas_dataframe_agent
+import time
+import httpx
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 
 PROMPT_TEMPLATE = """
@@ -32,13 +35,29 @@ PROMPT_TEMPLATE = """
 """
 
 
+# 定义重试装饰器
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
+def invoke_agent_with_retry(agent, prompt):
+    """带有重试机制的代理调用"""
+    try:
+        return agent.invoke({"input": prompt})
+    except (httpx.RemoteProtocolError, httpx.ReadTimeout, httpx.ConnectTimeout) as e:
+        print(f"API连接错误，正在重试: {str(e)}")
+        # 强制引发异常以触发重试
+        raise
+
+
 def dataframe_agent(deepseek_api_key, df, query):
-    model = ChatDeepSeek(
+    # 配置超时时间更长的模型客户端
+    model = ChatOpenAI(
         model="deepseek-chat",
         api_key=deepseek_api_key,
         temperature=0,
-        base_url="https://api.deepseek.com",
+        openai_api_base="https://api.deepseek.com/v1",
+        request_timeout=60,  # 设置较长的超时时间
     )
+
+    # 创建Pandas数据框代理
     agent = create_pandas_dataframe_agent(
         llm=model,
         df=df,
@@ -46,7 +65,20 @@ def dataframe_agent(deepseek_api_key, df, query):
         verbose=True,
         allow_dangerous_code=True,
     )
+
+    # 构建完整提示
     prompt = PROMPT_TEMPLATE + query
-    response = agent.invoke({"input": prompt})
-    response_dict = json.loads(response["output"])
-    return response_dict
+
+    try:
+        # 使用带重试的函数调用代理
+        response = invoke_agent_with_retry(agent, prompt)
+        # 解析JSON响应
+        response_dict = json.loads(response["output"])
+        return response_dict
+    except Exception as e:
+        # 捕获并处理所有异常
+        error_message = str(e)
+        print(f"数据分析出错: {error_message}")
+        return {
+            "answer": f"处理您的请求时出错。请尝试重新提问或简化您的问题。错误信息: {error_message}"
+        }

@@ -1,15 +1,15 @@
 from langchain.chains import ConversationChain
-from langchain_deepseek import ChatDeepSeek
+from langchain.chat_models import ChatOpenAI
 
 import os
 from langchain.memory import ConversationBufferMemory
 
 
 def get_chat_response(prompt, memory, deepseek_api_key):
-    model = ChatDeepSeek(
+    model = ChatOpenAI(
         model="deepseek-chat",
         api_key=deepseek_api_key,
-        base_url="https://api.deepseek.com",
+        openai_api_base="https://api.deepseek.com/v1",
     )
     chain = ConversationChain(llm=model, memory=memory)
 

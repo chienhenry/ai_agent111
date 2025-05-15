@@ -1,5 +1,5 @@
 from prompt_template import system_template_text, user_template_text
-from langchain_deepseek import ChatDeepSeek
+from langchain.chat_models import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
 from xiaohongshu_model import Xiaohongshu
 import json
@@ -61,10 +61,10 @@ def generate_xiaohongshu(theme, deepseek_api_key):
         ]
     )
 
-    model = ChatDeepSeek(
+    model = ChatOpenAI(
         model="deepseek-chat",
         api_key=deepseek_api_key,
-        base_url="https://api.deepseek.com",
+        openai_api_base="https://api.deepseek.com/v1",
     )
 
     chain = prompt | model
