@@ -62,9 +62,10 @@ def generate_xiaohongshu(theme, deepseek_api_key):
     )
 
     model = ChatOpenAI(
-        model="deepseek-chat",
-        api_key=deepseek_api_key,
+        model_name="deepseek-chat",
+        openai_api_key=deepseek_api_key,
         openai_api_base="https://api.deepseek.com/v1",
+        request_timeout=60.0,
     )
 
     chain = prompt | model
